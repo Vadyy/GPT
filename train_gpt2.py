@@ -287,7 +287,7 @@ for step in range(max_steps):
 
         max_length = 1000
 
-        print(enc.decode(x.squeeze().tolist()), end="")
+        print(enc.decode([x.item()]), end="")
         while x.size(1) < max_length:
             with torch.no_grad():
                 logits, loss = model(x)
