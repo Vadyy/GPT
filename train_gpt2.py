@@ -10,7 +10,7 @@ from torch.nn import functional as F
 # ----------------------------------
 
 # https://www.youtube.com/watch?v=l8pRSuU81PU 
-# 1:13:46 / 4:01:25
+# 2:47:00 / 4:01:25
 
 @dataclass
 class GPTConfig:
@@ -164,7 +164,7 @@ class DataLoaderLite:
         self.B = B
         self.T = T
 
-        with open('tinyshakespeare.txt', 'r') as f:
+        with open('vady.txt', 'r', encoding="utf-8") as f:
             text = f.read()
         
         enc = tiktoken.get_encoding('gpt2')
@@ -187,6 +187,31 @@ class DataLoaderLite:
         if self.current_position + (B * T + 1) > len(self.tokens):
             self.current_position = 0
         return x, y
+    
+def save_model(model, filepath):
+    torch.save(model.state_dict(), filepath)
+    print(f'Model saved to {filepath}')
+
+def load_model(model, filepath, device):
+    model.load_state_dict(torch.load(filepath, map_location=device))
+    model.to(device)
+    print(f'Model loaded from {filepath} and moved to {device}')
+
+def save_checkpoint(model, optimizer, step, filepath):
+    torch.save({
+        'step': step,
+        'model_state_dict': model.state_dict(),
+        'optimizer_state_dict': optimizer.state_dict(),
+    }, filepath)
+    print(f'Checkpoint saved to {filepath}')
+
+def load_checkpoint(model, optimizer, filepath, device):
+    checkpoint = torch.load(filepath, map_location=device)
+    model.load_state_dict(checkpoint['model_state_dict'])
+    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+    step = checkpoint['step']
+    print(f'Checkpoint loaded from {filepath}, last trained step {step}')
+    return step
 
 device = "cpu"
 if torch.cuda.is_available():
@@ -217,7 +242,7 @@ model.to(device)
 max_lr = 6e-4
 min_lr = max_lr * 0.1 # 10%
 warmup_steps = 10
-max_steps = 50
+max_steps = 5000
 def get_lr(it):
     if it < warmup_steps:
         return max_lr * (it+1) / warmup_steps
@@ -254,6 +279,30 @@ for step in range(max_steps):
     tokens_per_sec = tokens_processed / dt
     print(f"step {step} | loss: {loss_accum.item():.6f} | lr: {lr:.4e} | norm: {norm:.4f} | dt: {dt*1000:.2f}ms | tok/sec: {tokens_per_sec:.2f}")
 
+    if step % 50 == 0:
+        enc = tiktoken.get_encoding('gpt2')
+        x = enc.encode("[")
+        x = torch.tensor(x).unsqueeze(0) 
+        x = x.to(device)
+
+        max_length = 1000
+
+        print(enc.decode(x.squeeze().tolist()), end="")
+        while x.size(1) < max_length:
+            with torch.no_grad():
+                logits, loss = model(x)
+                logits = logits[:, -1, :]
+                probs = F.softmax(logits, dim=-1)
+                topk_probs, topk_indices = torch.topk(probs, 50, dim=-1) # only keeps the first 50 probabilities
+                ix = torch.multinomial(topk_probs, 1)
+                xcol = torch.gather(topk_indices, -1, ix)
+                x = torch.cat((x, xcol), dim=1)
+
+                print(enc.decode([xcol[0, 0].item()]), end="", flush=True)
+    if step % 100 == 0:
+        save_checkpoint(model, optimizer, step, f"checkpoints/vady-{step}.pth")
+    save_model(model, f"models/vady-{step}.pth")
+
 
 # import sys; sys.exit(0)
 enc = tiktoken.get_encoding('gpt2')
@@ -261,7 +310,7 @@ x = enc.encode("I am")
 x = torch.tensor(x).unsqueeze(0) 
 x = x.to(device)
 
-max_length = 300
+max_length = 5000
 
 print(enc.decode(x.squeeze().tolist()), end="")
 while x.size(1) < max_length:
