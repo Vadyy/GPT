@@ -372,6 +372,7 @@ if __name__ == "__main__":
         step = args.resume
         step = load_checkpoint(model, f"checkpoints/{model_name}-{step}.pth", device, optimizer)
         step = step+1
+        do_generation_at_start = step
 
         print(f'Resuming training from step {step}')
 
@@ -405,7 +406,8 @@ if __name__ == "__main__":
         tokens_per_sec = tokens_processed / dt
         print(f"step {step} | loss: {loss_accum.item():.6f} | lr: {lr:.4e} | norm: {norm:.4f} | dt: {dt*1000:.2f}ms | tok/sec: {tokens_per_sec:.2f}")
 
-        if step % 25 == 0 and step != 0:
+        if (step % 25 == 0 or do_generation_at_start) and step != 0:
+            do_generation_at_start = None
             enc = tiktoken.get_encoding('gpt2')
             x = enc.encode(" ")
             x = torch.tensor(x).unsqueeze(0) 
@@ -425,7 +427,7 @@ if __name__ == "__main__":
                     x = torch.cat((x, xcol), dim=1)
 
                     print(enc.decode([xcol[0, 0].item()]), end="", flush=True)
-                print("\n")
+            print("\n")
         if step % 100 == 0 and step != 0:
             save_checkpoint(model, optimizer, step, f"checkpoints/{model_name}-{step}.pth")
 
