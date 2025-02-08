@@ -404,9 +404,10 @@ if __name__ == "__main__":
         dt = t1 - t0
         tokens_processed = train_loader.B * train_loader.T * grad_accum_steps
         tokens_per_sec = tokens_processed / dt
-        print(f"step {step} | loss: {loss_accum.item():.6f} | lr: {lr:.4e} | norm: {norm:.4f} | dt: {dt*1000:.2f}ms | tok/sec: {tokens_per_sec:.2f}")
+        if step % 10 == 0:
+            print(f"step {step} | loss: {loss_accum.item():.6f} | lr: {lr:.4e} | norm: {norm:.4f} | dt: {dt*1000:.2f}ms | tok/sec: {tokens_per_sec:.2f}")
 
-        if (step % 25 == 0 or do_generation_at_start) and step != 0:
+        if (step % 100 == 0 or do_generation_at_start) and step != 0:
             do_generation_at_start = None
             enc = tiktoken.get_encoding('gpt2')
             x = enc.encode(" ")
