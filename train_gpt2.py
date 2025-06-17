@@ -314,13 +314,13 @@ if __name__ == "__main__":
         device = "mps"
     print(f"using device: {device}")
 
-    torch.manual_seed(1337)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed(1337)
+    # torch.manual_seed(1337)
+    # if torch.cuda.is_available():
+    #     torch.cuda.manual_seed(1337)
 
     total_batch_size = 524288 # 2**19, ~0.5M
 
-    B = 8
+    B = 16
     T = 1024
 
     assert total_batch_size % (B * T) == 0, "make sure total_batch_size is divisible by B * T"
@@ -352,7 +352,7 @@ if __name__ == "__main__":
     max_lr = 6e-4
     min_lr = max_lr * 0.1 # 10%
     warmup_steps = 10
-    max_steps = 10000
+    max_steps = 50000
 
     def get_lr(it):
         if it < warmup_steps:
@@ -404,10 +404,10 @@ if __name__ == "__main__":
         dt = t1 - t0
         tokens_processed = train_loader.B * train_loader.T * grad_accum_steps
         tokens_per_sec = tokens_processed / dt
-        if step % 10 == 0:
+        if step % 50 == 0:
             print(f"step {step} | loss: {loss_accum.item():.6f} | lr: {lr:.4e} | norm: {norm:.4f} | dt: {dt*1000:.2f}ms | tok/sec: {tokens_per_sec:.2f}")
 
-        if (step % 100 == 0 or do_generation_at_start) and step != 0:
+        if (step % 300 == 0 or do_generation_at_start) and step != 0:
             do_generation_at_start = None
             enc = tiktoken.get_encoding('gpt2')
             x = enc.encode(" ")
@@ -429,7 +429,7 @@ if __name__ == "__main__":
 
                     print(enc.decode([xcol[0, 0].item()]), end="", flush=True)
             print("\n")
-        if step % 100 == 0 and step != 0:
+        if step % 300 == 0 and step != 0:
             save_checkpoint(model, optimizer, step, f"checkpoints/{model_name}-{step}.pth")
 
     save_model(model, f"models/{model_name}-{step}.pth")

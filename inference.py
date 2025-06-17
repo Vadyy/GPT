@@ -69,4 +69,4 @@ if __name__ == "__main__":
                 xcol = torch.gather(topk_indices, -1, ix)
                 x = torch.cat((x, xcol), dim=1)
 
-                print(enc.decode([xcol[0, 0].item()]), end="", flush=True)
+                print(enc.decode([xcol[0, 0].item()]).replace("��", "'"), end="", flush=True)
